@@ -1,0 +1,1 @@
+{"mcpServers":{"fetch":{"args":["-y","@modelcontextprotocol/server-fetch"],"command":"npx","disabled":false},"github":{"args":["-y","@modelcontextprotocol/server-github"],"command":"npx","disabled":false,"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"${GITHUB_PERSONAL_ACCESS_TOKEN}"}}}}

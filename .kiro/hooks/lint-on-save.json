@@ -1,0 +1,1 @@
+{"commands":[{"command":".venv/bin/python -m py_compile \"${file}\"","timeout":30000,"type":"shell"}],"description":"Compile-check and basic style check whenever a Python file is saved.","filePattern":"**/*.py","name":"lint-on-save","when":"fileSaved"}

@@ -1,0 +1,4 @@
+{"id": "bt-001", "kind": "trading-backtest", "params": {"dataset": "tasks/data/btc-dip-bounce.csv"}, "expected": {"min_trades": 2, "min_net_pnl_pct": 1.0, "max_drawdown_pct": 1.0}}
+{"id": "bt-002", "kind": "trading-backtest", "params": {"dataset": "tasks/data/btc-1m-sample.csv", "start_bar": 0, "end_bar": 300}, "expected": {"min_trades": 0, "min_net_pnl_pct": 0.0, "max_drawdown_pct": 0.5}}
+{"id": "bt-003", "kind": "trading-backtest", "params": {"dataset": "tasks/data/btc-crash.csv"}, "expected": {"min_trades": 2, "min_net_pnl_pct": -2.0, "max_drawdown_pct": 2.0}}
+{"id": "bt-004", "kind": "trading-backtest", "params": {"dataset": "tasks/data/btc-1m-sample.csv"}, "expected": {"min_trades": 1, "min_net_pnl_pct": -1.0, "max_drawdown_pct": 2.0}}

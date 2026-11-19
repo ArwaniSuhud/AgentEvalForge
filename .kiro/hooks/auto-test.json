@@ -1,0 +1,1 @@
+{"commands":[{"command":".venv/bin/python -m pytest -q tests/ -x --tb=short","timeout":120000,"type":"shell"}],"description":"Run the affected test file with pytest whenever a Python file is saved.","filePattern":"**/*.py","name":"auto-test-on-save","when":"fileSaved"}

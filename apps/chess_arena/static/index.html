@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess Duel Arena — AgentEval Forge</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.6rem; }
+  table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1.5rem; }
+  th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; font-size: 0.9rem; }
+  th { background: #f0f0f0; }
+  form { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end; margin: 0.5rem 0; }
+  label { display: flex; flex-direction: column; font-size: 0.85rem; gap: 0.2rem; }
+  input { width: 5rem; padding: 0.3rem; }
+  button { padding: 0.45rem 1rem; cursor: pointer; }
+  #duel-result { white-space: pre-wrap; background: #f7f7f7; border: 1px solid #ddd; padding: 0.75rem; font-size: 0.9rem; }
+  .muted { color: #666; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<h1>Chess Duel Arena — AgentEval Forge</h1>
+<p class="muted">Two mini chess engines duel; every game is scored by the forge harness and shown below. Also see the <a href="/trading">BTC Paper-Trading Bot</a>.</p>
+
+<h2>Leaderboard</h2>
+<table id="leaderboard">
+  <thead><tr><th>Agent</th><th>Games</th><th>W</th><th>D</th><th>L</th><th>Avg score</th><th>Pass rate</th></tr></thead>
+  <tbody><tr><td colspan="7">Loading…</td></tr></tbody>
+</table>
+
+<h2>Recent games</h2>
+<table id="games">
+  <thead><tr><th>Task</th><th>Agent</th><th>Winner</th><th>Score</th><th>Passed</th><th>When</th></tr></thead>
+  <tbody><tr><td colspan="6">Loading…</td></tr></tbody>
+</table>
+
+<h2>Run a duel</h2>
+<form id="duel-form">
+  <label>White depth <input type="number" id="white_depth" value="5" min="1" max="9"></label>
+  <label>Black depth <input type="number" id="black_depth" value="2" min="1" max="9"></label>
+  <label>Max ply <input type="number" id="max_ply" value="200" min="1" max="1000"></label>
+  <button type="submit" id="run-btn">Run a duel</button>
+</form>
+<div id="duel-result">No duel run yet.</div>
+
+<script>
+async function loadLeaderboard() {
+  const res = await fetch('/api/leaderboard');
+  const rows = await res.json();
+  const body = document.querySelector('#leaderboard tbody');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="7">No games yet — run a duel below.</td></tr>'; return; }
+  body.innerHTML = rows.map(r =>
+    `<tr><td>${r.agent}</td><td>${r.games}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.avg_score.toFixed(3)}</td><td>${r.pass_rate.toFixed(3)}</td></tr>`
+  ).join('');
+}
+async function loadGames() {
+  const res = await fetch('/api/games');
+  const rows = await res.json();
+  const body = document.querySelector('#games tbody');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="6">No games yet.</td></tr>'; return; }
+  body.innerHTML = rows.map(r =>
+    `<tr><td>${r.task_id}</td><td>${r.agent}</td><td>${r.winner}</td><td>${r.score}</td><td>${r.passed}</td><td>${r.created_at || ''}</td></tr>`
+  ).join('');
+}
+document.getElementById('duel-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const btn = document.getElementById('run-btn');
+  const out = document.getElementById('duel-result');
+  btn.disabled = true;
+  out.textContent = 'Duel running… (deeper engines take longer)';
+  try {
+    const res = await fetch('/api/duel', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        white_depth: parseInt(document.getElementById('white_depth').value, 10),
+        black_depth: parseInt(document.getElementById('black_depth').value, 10),
+        max_ply: parseInt(document.getElementById('max_ply').value, 10),
+      }),
+    });
+    const d = await res.json();
+    out.textContent = `Winner: ${d.winner} (${d.reason})\nPlies: ${d.plies} — ${d.white} vs ${d.black}\nMoves: ${d.moves.join(' ')}\nFinal FEN: ${d.final_fen}`;
+    await loadLeaderboard();
+    await loadGames();
+  } catch (err) {
+    out.textContent = 'Duel failed: ' + err;
+  } finally {
+    btn.disabled = false;
+  }
+});
+loadLeaderboard();
+loadGames();
+</script>
+</body>
+</html>

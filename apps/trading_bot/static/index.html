@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BTC Paper-Trading Bot — AgentEval Forge</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.6rem; }
+  table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1.5rem; }
+  th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; font-size: 0.9rem; }
+  th { background: #f0f0f0; }
+  form { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end; margin: 0.5rem 0; }
+  label { display: flex; flex-direction: column; font-size: 0.85rem; gap: 0.2rem; }
+  input, select { padding: 0.3rem; }
+  input { width: 5rem; }
+  button { padding: 0.45rem 1rem; cursor: pointer; }
+  #bt-result { white-space: pre-wrap; background: #f7f7f7; border: 1px solid #ddd; padding: 0.75rem; font-size: 0.9rem; }
+  .muted { color: #666; font-size: 0.85rem; }
+  .preset { font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<h1>BTC Paper-Trading Bot — AgentEval Forge</h1>
+<p class="muted">Dip-buy mean-reversion bot (the author's $15-winning make.fun entry, re-tuned)
+backtested offline on bundled static BTC data — no API keys, no network.
+Also see the <a href="/">Chess Duel Arena</a>.</p>
+
+<h2>Combined leaderboard</h2>
+<table id="leaderboard">
+  <thead><tr><th>Agent</th><th>Games</th><th>W</th><th>D</th><th>L</th><th>Avg score</th><th>Pass rate</th></tr></thead>
+  <tbody><tr><td colspan="7">Loading…</td></tr></tbody>
+</table>
+
+<h2>Recent backtests</h2>
+<table id="backtests">
+  <thead><tr><th>Task</th><th>Agent</th><th>Score</th><th>Passed</th><th>When</th></tr></thead>
+  <tbody><tr><td colspan="5">Loading…</td></tr></tbody>
+</table>
+
+<h2>Run a backtest</h2>
+<p class="preset">
+  Presets:
+  <button type="button" data-preset="full">Full real sample (1500 bars)</button>
+  <button type="button" data-preset="calm">Calm slice (bars 0–300)</button>
+  <button type="button" data-preset="bounce">Dip-bounce fixture</button>
+  <button type="button" data-preset="crash">Crash fixture</button>
+</p>
+<form id="bt-form">
+  <label>Dataset
+    <select id="dataset">
+      <option value="tasks/data/btc-1m-sample.csv">Real BTC 1m sample (1500 bars)</option>
+      <option value="tasks/data/btc-dip-bounce.csv">Dip-bounce fixture (synthetic)</option>
+      <option value="tasks/data/btc-crash.csv">Crash fixture (synthetic)</option>
+    </select>
+  </label>
+  <label>Start bar <input type="number" id="start_bar" value="0" min="0"></label>
+  <label>End bar <input type="number" id="end_bar" value="" min="0" placeholder="all"></label>
+  <label>Window <input type="number" id="window" value="105" min="1" max="500"></label>
+  <label>Drop bps <input type="number" id="drop_bps" value="215" min="0"></label>
+  <label>Recovery bps <input type="number" id="recovery_bps" value="20" min="0"></label>
+  <label>Take-profit bps <input type="number" id="take_profit_bps" value="190" min="0"></label>
+  <label>Trail bps <input type="number" id="trail_bps" value="100" min="0"></label>
+  <label>Stop-loss bps <input type="number" id="stop_loss_bps" value="120" min="0"></label>
+  <label>Fee bps <input type="number" id="fee_bps" value="4" min="0"></label>
+  <label>Cash $ <input type="number" id="starting_cash" value="1000" min="1"></label>
+  <button type="submit" id="run-btn">Run backtest</button>
+</form>
+<div id="bt-result">No backtest run yet.</div>
+
+<script>
+async function loadLeaderboard() {
+  const res = await fetch('/api/leaderboard');
+  const rows = await res.json();
+  const body = document.querySelector('#leaderboard tbody');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="7">No results yet — run a backtest below.</td></tr>'; return; }
+  body.innerHTML = rows.map(r =>
+    `<tr><td>${r.agent}</td><td>${r.games}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.avg_score.toFixed(3)}</td><td>${r.pass_rate.toFixed(3)}</td></tr>`
+  ).join('');
+}
+async function loadBacktests() {
+  const res = await fetch('/api/backtests');
+  const rows = await res.json();
+  const body = document.querySelector('#backtests tbody');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="5">No backtests yet.</td></tr>'; return; }
+  body.innerHTML = rows.map(r =>
+    `<tr><td>${r.task_id}</td><td>${r.agent}</td><td>${r.score}</td><td>${r.passed}</td><td>${r.created_at || ''}</td></tr>`
+  ).join('');
+}
+const PRESETS = {
+  full:  { dataset: 'tasks/data/btc-1m-sample.csv', start_bar: 0, end_bar: '' },
+  calm:  { dataset: 'tasks/data/btc-1m-sample.csv', start_bar: 0, end_bar: 300 },
+  bounce:{ dataset: 'tasks/data/btc-dip-bounce.csv', start_bar: 0, end_bar: '' },
+  crash: { dataset: 'tasks/data/btc-crash.csv', start_bar: 0, end_bar: '' },
+};
+document.querySelectorAll('[data-preset]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const p = PRESETS[btn.dataset.preset];
+    document.getElementById('dataset').value = p.dataset;
+    document.getElementById('start_bar').value = p.start_bar;
+    document.getElementById('end_bar').value = p.end_bar;
+  });
+});
+document.getElementById('bt-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const btn = document.getElementById('run-btn');
+  const out = document.getElementById('bt-result');
+  btn.disabled = true;
+  out.textContent = 'Backtest running…';
+  try {
+    const endBar = document.getElementById('end_bar').value;
+    const body = {
+      dataset: document.getElementById('dataset').value,
+      start_bar: parseInt(document.getElementById('start_bar').value, 10),
+      window: parseInt(document.getElementById('window').value, 10),
+      drop_bps: parseInt(document.getElementById('drop_bps').value, 10),
+      recovery_bps: parseInt(document.getElementById('recovery_bps').value, 10),
+      take_profit_bps: parseInt(document.getElementById('take_profit_bps').value, 10),
+      trail_bps: parseInt(document.getElementById('trail_bps').value, 10),
+      stop_loss_bps: parseInt(document.getElementById('stop_loss_bps').value, 10),
+      fee_bps: parseInt(document.getElementById('fee_bps').value, 10),
+      starting_cash: parseFloat(document.getElementById('starting_cash').value),
+    };
+    if (endBar !== '') body.end_bar = parseInt(endBar, 10);
+    const res = await fetch('/api/backtest', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const d = await res.json();
+    if (d.error) { out.textContent = 'Error: ' + d.error; return; }
+    const lines = [
+      `Bars: ${d.bars} — Trades: ${d.trades} (round trips: ${d.round_trips}, win rate: ${d.win_rate === null ? 'n/a' : d.win_rate})`,
+      `Final equity: $${d.final_equity.toFixed(2)} — Net PnL: $${d.net_pnl.toFixed(2)} (${d.net_pnl_pct.toFixed(2)}%)`,
+      `Max drawdown: ${d.max_drawdown_pct.toFixed(2)}% — Open position: ${d.open_position}`,
+      `Score: ${d.score} — Passed: ${d.passed}`,
+      '',
+      'Trades:',
+      ...(d.trade_log.length ? d.trade_log.map(t =>
+        `  bar ${t.bar}: ${t.side} @ $${t.price.toFixed(2)} qty ${t.qty.toFixed(6)} fee $${t.fee.toFixed(2)} (${t.reason})`
+      ) : ['  (no trades)']),
+    ];
+    out.textContent = lines.join('\n');
+    await loadLeaderboard();
+    await loadBacktests();
+  } catch (err) {
+    out.textContent = 'Backtest failed: ' + err;
+  } finally {
+    btn.disabled = false;
+  }
+});
+loadLeaderboard();
+loadBacktests();
+</script>
+</body>
+</html>

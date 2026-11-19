@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.sqlite3
+.pytest_cache/
+.hypothesis/
+
+# Results / local data
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# NOTE: .kiro/ is intentionally NOT ignored — the Kiroween rules require
+# the /.kiro folder at the repo root and it must be committed.
