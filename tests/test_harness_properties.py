@@ -65,10 +65,13 @@ def _random_rows(draw):
 
 
 @given(rows=_random_rows())
-@settings(max_examples=50)
+@settings(max_examples=50, deadline=None)
 def test_leaderboard_consistent(rows):
     # NOTE: tmp_path fixture cannot be used with @given (Hypothesis
     # health check); use a fresh temp dir per generated example instead.
+    # deadline=None: each example does SQLite file I/O (up to 30 inserts);
+    # the first-call cost varies with disk/antivirus warmup on Windows,
+    # while the invariant under test is the leaderboard math, not timing.
     with tempfile.TemporaryDirectory() as td:
         db = Path(td) / "r.db"
         for i, r in enumerate(rows):
@@ -107,8 +110,12 @@ def _random_tasks(draw):
 
 
 @given(tasks=_random_tasks())
-@settings(max_examples=50)
+@settings(max_examples=50, deadline=None)
 def test_jsonl_round_trip(tasks):
+    # deadline=None: each example writes then reads a JSONL file on disk;
+    # the first call can take >200ms due to filesystem/antivirus warmup
+    # while later calls take ~15ms. The invariant under test is round-trip
+    # equality, not per-example timing.
     with tempfile.TemporaryDirectory() as td:
         path = Path(td) / "tasks.jsonl"
         write_tasks(path, tasks)

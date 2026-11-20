@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -35,9 +36,32 @@ def _connect(db_path):
     return conn
 
 
+@contextmanager
+def _conn(db_path):
+    """Yield a connection that commits on success, rolls back on error,
+    and is always closed.
+
+    Closing promptly releases the OS file handle. That matters on
+    Windows, where an open file cannot be deleted (WinError 32); Linux
+    allows deleting open files, which masked this for the original
+    Linux-only verification. Note that ``with sqlite3.connect(...) as
+    conn`` only commits/rolls back the transaction and leaves the
+    connection open, so it is not sufficient here.
+    """
+    conn = _connect(db_path)
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def init_db(path) -> None:
     """Create the ``results`` table if it does not exist yet."""
-    with _connect(path) as conn:
+    with _conn(path) as conn:
         conn.execute(_SCHEMA)
         conn.commit()
 
@@ -61,7 +85,7 @@ def record_result(
 ) -> None:
     """Insert one result row. ``details`` is stored as JSON text."""
     init_db(db_path)
-    with _connect(db_path) as conn:
+    with _conn(db_path) as conn:
         conn.execute(
             """INSERT INTO results
                (run_id, agent, task_id, kind, winner, score, passed,
@@ -94,7 +118,7 @@ def leaderboard(db_path, limit: int = 50) -> list[dict]:
     wins + draws + losses == games.
     """
     init_db(db_path)
-    with _connect(db_path) as conn:
+    with _conn(db_path) as conn:
         rows = conn.execute(
             """SELECT agent,
                       COUNT(*) AS games,
@@ -137,7 +161,7 @@ def leaderboard(db_path, limit: int = 50) -> list[dict]:
 def recent_games(db_path, limit: int = 20) -> list[dict]:
     """Most recent result rows (newest first by id)."""
     init_db(db_path)
-    with _connect(db_path) as conn:
+    with _conn(db_path) as conn:
         rows = conn.execute(
             """SELECT task_id, agent, kind, winner, score, passed, details, created_at
                FROM results
