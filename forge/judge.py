@@ -78,6 +78,43 @@ def _judge_trading(task: dict, result: dict) -> dict:
     }
 
 
+def _judge_math(task: dict, result: dict) -> dict:
+    """Score a math-word result.
+
+    ``expected``: ``{"answer": number}``. Passed (score 1.0) when the
+    numeric answer matches the expected answer within 1e-9; otherwise
+    score 0.0. No partial credit: an answer is either right or it is not.
+    """
+    expected = task.get("expected")
+    if not isinstance(expected, dict) or "answer" not in expected:
+        raise ValueError("task['expected']['answer'] is required for math-word")
+    try:
+        actual = result["answer"]
+    except (KeyError, TypeError) as exc:
+        raise ValueError("result['answer'] is required for math-word") from exc
+    try:
+        expected_answer = float(expected["answer"])
+        actual_answer = float(actual)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("math-word answers must be numeric") from exc
+
+    passed = abs(actual_answer - expected_answer) <= 1e-9
+    return {
+        "passed": passed,
+        "score": 1.0 if passed else 0.0,
+        "details": {
+            "kind": "math-word",
+            "expected_answer": expected_answer,
+            "actual_answer": actual_answer,
+            "reason": (
+                f"answer {actual_answer} matches expected {expected_answer} within 1e-9"
+                if passed
+                else f"answer {actual_answer} != expected {expected_answer}"
+            ),
+        },
+    }
+
+
 def judge(task: dict, result: dict) -> dict:
     """Score ``result`` against ``task["expected"]``.
 
@@ -91,6 +128,9 @@ def judge(task: dict, result: dict) -> dict:
 
     trading-backtest rules: see ``_judge_trading``.
 
+    math-word rules: see ``_judge_math`` — the numeric answer must
+    match ``expected["answer"]`` within 1e-9.
+
     Unknown kind raises ValueError.
     """
     kind = task.get("kind") if isinstance(task, dict) else None
@@ -98,4 +138,6 @@ def judge(task: dict, result: dict) -> dict:
         return _judge_chess(task, result)
     if kind == "trading-backtest":
         return _judge_trading(task, result)
+    if kind == "math-word":
+        return _judge_math(task, result)
     raise ValueError(f"unknown kind for judge: {kind!r}")

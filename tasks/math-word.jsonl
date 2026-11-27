@@ -1,0 +1,8 @@
+{"id": "mw-001", "kind": "math-word", "params": {"problem": "Milo has 3 red balloons and 4 blue balloons. How many balloons does Milo have?", "expression": "3 + 4"}, "expected": {"answer": 7}}
+{"id": "mw-002", "kind": "math-word", "params": {"problem": "A baker made 12 muffins and sold 5. How many muffins are left?", "expression": "12 - 5"}, "expected": {"answer": 7}}
+{"id": "mw-003", "kind": "math-word", "params": {"problem": "There are 6 boxes with 7 crayons in each box. How many crayons are there in total?", "expression": "6 * 7"}, "expected": {"answer": 42}}
+{"id": "mw-004", "kind": "math-word", "params": {"problem": "84 marbles are shared equally among 7 friends. How many marbles does each friend get?", "expression": "84 / 7"}, "expected": {"answer": 12}}
+{"id": "mw-005", "kind": "math-word", "params": {"problem": "Sari buys 3 bags with 8 oranges in each bag, then gives away 4 oranges. How many oranges does she have left?", "expression": "3 * 8 - 4"}, "expected": {"answer": 20}}
+{"id": "mw-006", "kind": "math-word", "params": {"problem": "A shop has 8 shelves with 4 jars on each shelf, and 3 more jars on the counter. How many jars are there in total?", "expression": "8 * 4 + 3"}, "expected": {"answer": 35}}
+{"id": "mw-007", "kind": "math-word", "params": {"problem": "100 students are split into groups after 20 students leave for a trip; each group has 8 students. How many groups are there?", "expression": "(100 - 20) / 8"}, "expected": {"answer": 10}}
+{"id": "mw-008", "kind": "math-word", "params": {"problem": "A ribbon 15 metres long is cut into 4 equal pieces. How long is each piece?", "expression": "15 / 4"}, "expected": {"answer": 3.75}}

@@ -48,3 +48,26 @@ checkmate for Black at ply 142. Full bundled run takes ~4 minutes
   docs/blog-draft.md, docs/video-script.md (2:45),
   docs/submission-text.md.)
 - [ ] 11. Submit on Devpost (user does this; assistant prepares text).
+
+## Phase 3 — Kiro polish (done 2026-11-27)
+
+- [x] 12. Executor ketiga "math-word" (`forge/runner.py`,
+  `forge/judge.py`, `tasks/math-word.jsonl`,
+  `tests/test_math_executor.py`) — deterministic word-problem
+  evaluation with a tiny built-in arithmetic solver (AST walk, no
+  `eval()`, no LLM, no network); judge passes iff the numeric answer
+  matches within 1e-9. README executor list + run command updated.
+  Verified: `pytest -q` 101 passed (79 baseline + 18 math + 4 UI);
+  `python -m forge run --tasks tasks/math-word.jsonl` 8/8 PASS;
+  chess 3/3 + trading 4/4 still PASS; existing executors/judge
+  untouched.
+- [x] 13. UI dashboard polish (`apps/chess_arena/static/forge.css`,
+  both static pages, `apps/chess_arena/server.py`) — one shared
+  stylesheet served at `/static/forge.css`, shared top nav on both
+  pages (Chess Arena <-> Trading Bot, current page marked), and a
+  "Recent trading backtests" section on the chess page fed by the
+  existing `/api/backtests` endpoint (no new API). Duel/backtest
+  forms unchanged. README screenshots captions updated.
+  Verified: `pytest -q` 101 passed; local server serves `/`,
+  `/trading`, `/static/forge.css`, `/api/leaderboard`, `/api/games`,
+  `/api/backtests` all 200; leaderboard shows chess + trading results.

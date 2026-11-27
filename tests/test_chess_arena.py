@@ -200,3 +200,42 @@ def test_api_duel_records_result(api_client):
     # ...and through the API itself.
     assert api_client.get("/api/leaderboard").json()[0]["agent"] == "chess-arena"
     assert len(api_client.get("/api/games").json()) == 1
+
+
+# ---------------------------------------------------------------------------
+# UI polish (option B): shared stylesheet + top nav + backtests on chess page
+# ---------------------------------------------------------------------------
+
+
+def test_api_shared_css(api_client):
+    res = api_client.get("/static/forge.css")
+    assert res.status_code == 200
+    assert "text/css" in res.headers["content-type"]
+    assert ".topnav" in res.text
+    assert "#duel-result" in res.text
+    assert "#bt-result" in res.text
+
+
+def test_api_index_has_nav_and_backtests_section(api_client):
+    res = api_client.get("/")
+    assert res.status_code == 200
+    assert 'href="/static/forge.css"' in res.text
+    assert 'class="topnav"' in res.text
+    assert 'href="/trading"' in res.text
+    assert "Recent trading backtests" in res.text
+    assert 'id="backtests"' in res.text
+    assert "loadBacktests" in res.text
+
+
+def test_api_trading_has_nav(api_client):
+    res = api_client.get("/trading")
+    assert res.status_code == 200
+    assert 'href="/static/forge.css"' in res.text
+    assert 'class="topnav"' in res.text
+    assert 'href="/"' in res.text
+
+
+def test_api_backtests_empty(api_client):
+    res = api_client.get("/api/backtests")
+    assert res.status_code == 200
+    assert res.json() == []

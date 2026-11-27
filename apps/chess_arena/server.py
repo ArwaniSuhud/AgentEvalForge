@@ -92,6 +92,12 @@ def trading_index():
     return FileResponse(_TRADING_STATIC_DIR / "index.html")
 
 
+@app.get("/static/forge.css")
+def shared_css():
+    """Shared stylesheet used by both demo pages."""
+    return FileResponse(_STATIC_DIR / "forge.css", media_type="text/css")
+
+
 @app.get("/api/leaderboard")
 def api_leaderboard():
     return _store.leaderboard(DB_PATH)

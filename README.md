@@ -27,14 +27,22 @@ evaluation:
   author's $15-winning make.fun `btc-race-24h` entry, re-tuned),
   scored by the same harness via the `trading-backtest` executor.
   Runs offline on bundled static BTC data — no API keys, no network.
+- **Demo executor 3: math-word** (`forge/runner.py`) — deterministic
+  word-problem evaluation: a tiny built-in arithmetic solver (AST
+  walk, no `eval()`, no LLM, no network) solves the bundled problems
+  and the judge passes iff the numeric answer matches within 1e-9.
+  It proves the template generalises beyond chess and trading.
 
 ## Screenshots
 
 ![Chess Duel Arena](docs/screenshots/chess-arena.png)
-*Chess Duel Arena — combined leaderboard, recent games, run-a-duel form.*
+*Chess Duel Arena — shared top nav, combined leaderboard, recent games, recent trading backtests, run-a-duel form.*
 
 ![BTC Paper-Trading Bot](docs/screenshots/trading-bot.png)
-*BTC Paper-Trading Bot — combined leaderboard, recent backtests, presets.*
+*BTC Paper-Trading Bot — shared top nav, combined leaderboard, recent backtests, presets.*
+
+(The screenshots predate the shared top nav added in the Kiro polish;
+the pages are otherwise unchanged.)
 
 ## Quick start
 
@@ -49,7 +57,10 @@ python -m forge run --tasks tasks/chess-duels.jsonl --db data/results.db --agent
 # Run the bundled trading-backtest eval tasks
 python -m forge run --tasks tasks/trading-backtests.jsonl --db data/results.db --agent forge-trading
 
-# Show the leaderboard (combined: chess + trading)
+# Run the bundled math-word eval tasks (8/8 PASS)
+python -m forge run --tasks tasks/math-word.jsonl --db data/results.db --agent forge-math
+
+# Show the leaderboard (combined: chess + trading + math-word)
 python -m forge leaderboard --db data/results.db
 
 # Start the web UI (Chess Duel Arena at /, BTC Paper-Trading Bot at /trading)
@@ -68,7 +79,8 @@ pytest -q
 1. A task is one JSONL line: `{"id", "kind", "params", "expected"}`.
 2. The runner executes the task with the registered executor for its
    `kind` (for example `chess-duel` plays a full engine-vs-engine game,
-   `trading-backtest` runs a BTC backtest).
+   `trading-backtest` runs a BTC backtest, `math-word` solves a word
+   problem with the built-in arithmetic solver).
 3. The deterministic judge compares the actual result with `expected`
    and returns a score in `[0, 1]` plus `passed: true/false`.
    - `chess-duel`: `expected.winner` must match the actual winner
@@ -80,10 +92,12 @@ pytest -q
      `max_drawdown_pct`. A negative `min_net_pnl_pct` floor is how a
      bounded-loss scenario passes: the strategy is judged on staying
      inside its risk envelope, not on always profiting.
+   - `math-word`: `expected` is `{"answer": number}` — the run passes
+     when the solver's numeric answer matches within 1e-9.
 4. Results are stored in SQLite; `forge leaderboard` aggregates them
    per agent (wins / draws / losses, average score, pass rate). For
    non-chess kinds a passed row counts as a win, a failed row as a
-   loss, so the leaderboard is combined across both demo apps.
+   loss, so the leaderboard is combined across all three executors.
 
 Because every executor is deterministic, the same task file always
 produces the same scores — re-runs are reproducible, and property

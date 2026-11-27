@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import ast
+import operator
 import time
 from datetime import datetime, timezone
 
 from .judge import judge
 from .store import init_db, record_result
 
-__all__ = ["EXECUTORS", "register", "run_tasks", "_chess_duel_executor"]
+__all__ = ["EXECUTORS", "register", "run_tasks", "_chess_duel_executor", "_math_word_executor"]
 
 
 def _default_run_id() -> str:
@@ -45,9 +47,95 @@ def _trading_backtest_executor(params: dict) -> dict:
     return backtest_from_params(params)
 
 
+_MATH_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+}
+_MATH_SYMBOLS = {ast.Add: "+", ast.Sub: "-", ast.Mult: "*", ast.Div: "/"}
+
+
+def _fmt_num(value: float) -> str:
+    """Render a number without a trailing '.0' when it is integral."""
+    return str(int(value)) if float(value).is_integer() else repr(value)
+
+
+def _eval_math_expr(expr: str) -> tuple[float, list[str]]:
+    """Evaluate a small arithmetic expression safely (AST walk, no eval()).
+
+    Only + - * / , parentheses and plain numbers are allowed. Returns
+    ``(answer, steps)`` where ``steps`` records each sub-operation
+    bottom-up, e.g. ``"(3 + 4) * 2"`` -> ``["3 + 4 = 7", "7 * 2 = 14"]``.
+    """
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"invalid math expression {expr!r}: {exc.msg}") from exc
+
+    steps: list[str] = []
+
+    def _eval(node) -> float:
+        if isinstance(node, ast.Expression):
+            return _eval(node.body)
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+                raise ValueError(
+                    f"invalid math expression {expr!r}: only plain numbers are allowed"
+                )
+            return float(node.value)
+        if isinstance(node, ast.BinOp):
+            op = _MATH_OPS.get(type(node.op))
+            if op is None:
+                raise ValueError(
+                    f"invalid math expression {expr!r}: only + - * / are allowed"
+                )
+            left = _eval(node.left)
+            right = _eval(node.right)
+            if isinstance(node.op, ast.Div) and right == 0:
+                raise ValueError(f"invalid math expression {expr!r}: division by zero")
+            value = op(left, right)
+            steps.append(
+                f"{_fmt_num(left)} {_MATH_SYMBOLS[type(node.op)]} {_fmt_num(right)} = {_fmt_num(value)}"
+            )
+            return value
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+            value = _eval(node.operand)
+            return +value if isinstance(node.op, ast.UAdd) else -value
+        raise ValueError(
+            f"invalid math expression {expr!r}: only + - * /, parentheses and numbers are allowed"
+        )
+
+    return _eval(tree), steps
+
+
+def _math_word_executor(params: dict) -> dict:
+    """Deterministic word-problem executor (fully offline).
+
+    ``params``: ``{"problem": str, "expression": str}`` — ``expression``
+    is a small arithmetic expression (+ - * / and parentheses) that
+    encodes the problem; it is solved by the tiny built-in solver
+    above (no LLM, no network). Returns
+    ``{"answer": float, "steps": [str, ...], "problem": str}``.
+    ``problem`` falls back to the expression when it is absent.
+    """
+    if not isinstance(params, dict):
+        raise ValueError("math-word params must be an object with 'expression'")
+    expression = params.get("expression")
+    if not isinstance(expression, str) or not expression.strip():
+        raise ValueError("math-word params['expression'] must be a non-empty string")
+    answer, steps = _eval_math_expr(expression)
+    return {
+        "answer": answer,
+        "steps": steps,
+        "problem": params.get("problem") or expression.strip(),
+    }
+
+
 EXECUTORS: dict[str, object] = {
     "chess-duel": _chess_duel_executor,
     "trading-backtest": _trading_backtest_executor,
+    "math-word": _math_word_executor,
 }
 
 
